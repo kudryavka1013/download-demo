@@ -1,10 +1,60 @@
 import React from 'react';
-import logo from './logo.svg';
+import smlImg from './demo1.jpg';
+import bigImg from './demo2.jpg';
+import { saveAs } from 'file-saver'
 import './App.css';
 
 function App() {
-  const downloadByBlob = (type: number) => {
-    
+  const downloadByBlob = async (type: number) => {
+    try {
+      const url = type ? smlImg : bigImg
+      const blob = await getBlobFromUrl(url)
+      saveAs(blob, 'download.jpg')
+      //downloadFileFromBlob(blob)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const getBlobFromUrl = (url: string): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('get', url, true)
+      xhr.responseType = 'blob'
+      console.log('download start')
+      xhr.onprogress = function onProgress(e: any) {
+        const { total, loaded } = e
+        const percentage = (loaded / total).toFixed(2)
+        console.log('percentage: ', percentage)
+      }
+      xhr.onload = function onLoad() {
+        if (this.status === 200) {
+          console.log('download end')
+          resolve(this.response)
+        }
+      }
+      xhr.onerror = function onError() {
+        reject()
+      }
+      xhr.send()
+    })
+  }
+
+  // file-saver 内部大致实现
+  const downloadFileFromBlob = (blob: any, name?: string) => {
+    const a = document.createElement('a')
+    // 一般需要先获取文件名字，不写后缀会自动识别，可能会错
+    a.download = name || blob.name || 'download.jpg'
+    a.rel = 'noopener'
+    // URL.createObjectURL 为这个blob对象生成一个可访问的链接
+    a.href = URL.createObjectURL(blob)
+    a.target = '_blank'
+    // 40s后移除这个临时链接
+    setTimeout(function () { URL.revokeObjectURL(a.href) }, 40 * 1000) // 40s
+    // 触发a标签，执行下载
+    setTimeout(function () {
+      a.dispatchEvent(new MouseEvent('click'))
+    }, 0)
   }
 
   return (
@@ -14,7 +64,6 @@ function App() {
           {`通过<a>标签下载`}
         </div>
         <div className="container">
-
           <div className="card">
             <div className="description">
               <p>{`不加任何属性，通过<a>标签下载`}</p>
@@ -64,7 +113,7 @@ function App() {
             <div className="action">
               <a
                 className="App-link"
-                href={logo}
+                href={smlImg}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
@@ -107,7 +156,7 @@ function App() {
               <a
                 href="javascript:void(0)"
                 className="App-link"
-                onClick={() => { downloadByBlob(2) }}
+                onClick={() => { downloadByBlob(0) }}
               >
                 {`（大文件测试）浏览器不显示下载进度`}
               </a>
@@ -115,6 +164,7 @@ function App() {
             <div className="description">
               <p>{`通过xhr对象构建请求，获取到blob后，创建一个隐藏的<a>标签触发浏览器下载`}</p>
               <p>{`问题：浏览器无法知晓实际进度，表现为点击后无反应，然后下载瞬间完成`}</p>
+              <p>{`打开控制台查看进度`}</p>
             </div>
           </div>
         </div>
