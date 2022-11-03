@@ -76,6 +76,7 @@ function App() {
         const readableStream = res.body
         // more optimized
         if (window.WritableStream && readableStream && readableStream.pipeTo) {
+          console.log('start writing')
           return readableStream.pipeTo(fileStream)
             .then(() => console.log('done writing'))
         }
