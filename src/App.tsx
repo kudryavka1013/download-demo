@@ -1,15 +1,21 @@
 import React from 'react';
 import smlImg from './demo1.jpg';
-import bigImg from './demo2.jpg';
 import { saveAs } from 'file-saver'
+import streamSaver from 'streamsaver'
 import './App.css';
 
 function App() {
+  const getFileName = (url: string) => {
+    const fileName = url.substring(url.lastIndexOf('/') + 1);
+    return fileName
+  }
+
   const downloadByBlob = async (type: number) => {
+    const bigZip = 'https://gh.con.sh/https://github.com/AaronFeng753/Waifu2x-Extension-GUI/releases/download/v2.21.12/Waifu2x-Extension-GUI-v2.21.12-Portable.7z'
     try {
-      const url = type ? smlImg : bigImg
+      const url = type ? smlImg : bigZip
       const blob = await getBlobFromUrl(url)
-      saveAs(blob, 'download.jpg')
+      saveAs(blob, getFileName(url))
       //downloadFileFromBlob(blob)
     } catch (error) {
       console.log(error)
@@ -44,7 +50,7 @@ function App() {
   const downloadFileFromBlob = (blob: any, name?: string) => {
     const a = document.createElement('a')
     // 一般需要先获取文件名字，不写后缀会自动识别，可能会错
-    a.download = name || blob.name || 'download.jpg'
+    a.download = name || blob.name
     a.rel = 'noopener'
     // URL.createObjectURL 为这个blob对象生成一个可访问的链接
     a.href = URL.createObjectURL(blob)
@@ -55,6 +61,35 @@ function App() {
     setTimeout(function () {
       a.dispatchEvent(new MouseEvent('click'))
     }, 0)
+  }
+
+  //参考官方Example：https://github.com/jimmywarting/StreamSaver.js/blob/master/examples/fetch.html
+  const downloadByStream = () => {
+    const url = 'https://gh.con.sh/https://github.com/AaronFeng753/Waifu2x-Extension-GUI/releases/download/v2.21.12/Waifu2x-Extension-GUI-v2.21.12-Portable.7z'
+    fetch(url).then(res => {
+      if (res.body && res.headers.get('content-length') !== null) {
+        const size = res.headers.get('content-length')
+        const fileStream = streamSaver.createWriteStream(getFileName(url), {
+          size: Number(size)
+        })
+
+        const readableStream = res.body
+        // more optimized
+        if (window.WritableStream && readableStream && readableStream.pipeTo) {
+          return readableStream.pipeTo(fileStream)
+            .then(() => console.log('done writing'))
+        }
+
+        (window as any).writer = fileStream.getWriter()
+
+        const reader = res.body.getReader()
+        const pump = () => reader.read()
+          .then(res => res.done
+            ? (window as any).writer.close()
+            : (window as any).writer.write(res.value).then(pump))
+        pump()
+      }
+    })
   }
 
   return (
@@ -134,12 +169,13 @@ function App() {
             </div>
             <div className="description">
               <p>{`<a>标签加 download 属性，让所有文件都下载，不直接打开`}</p>
-              <p>{`问题：下载跨域文件时，download 失效，表现和不使用 download 时一致`}</p>
+              <p>{`问题：download 受同源策略的影响，下载跨域文件时失效，表现和不使用 download 时一致`}</p>
+              <p>{`Tips：后端oss可以批量设置HTTP头，设置HTTP请求头为 Content-Disposition 为 attachment`}</p>
             </div>
           </div>
         </div>
         <div className="header">
-          {`利用Blob对象下载`}
+          {`利用Blob对象下载（FileSaver）`}
         </div>
         <div className="container">
           <div className="card">
@@ -163,8 +199,30 @@ function App() {
             </div>
             <div className="description">
               <p>{`通过xhr对象构建请求，获取到blob后，创建一个隐藏的<a>标签触发浏览器下载`}</p>
-              <p>{`问题：浏览器无法知晓实际进度，表现为点击后无反应，然后下载瞬间完成`}</p>
+              <p>{`问题1：浏览器无法知晓实际进度，表现为点击后无反应，然后下载瞬间完成`}</p>
+              <p>{`问题2：跨域不能直接下载`}</p>
               <p>{`打开控制台查看进度`}</p>
+            </div>
+          </div>
+        </div>
+        <div className="header">
+          {`流式下载（Fetch + StreamSaver）`}
+        </div>
+        <div className="container">
+          <div className="card">
+            <div className="action">
+              <a
+                href="javascript:void(0)"
+                className="App-link"
+                onClick={() => { downloadByStream() }}
+              >
+                {`通过事件触发，利用Stream下载`}
+              </a>
+            </div>
+            <div className="description">
+              <p>{`通过Fetch请求数据，并创建一个写入流持续往里写数据，`}</p>
+              <p>{`Fetch比xhr区别在于只要响应马上就可以开始弹出浏览器下载`}</p>
+              <p>{`浏览器能直接查看进度`}</p>
             </div>
           </div>
         </div>
