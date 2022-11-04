@@ -52,7 +52,7 @@ function App() {
     // 一般需要先获取文件名字，不写后缀会自动识别，可能会错
     a.download = name || blob.name
     a.rel = 'noopener'
-    // URL.createObjectURL 为这个blob对象生成一个可访问的链接
+    // URL.createObjectURL 为这个blob对象生成一个临时可访问的链接
     a.href = URL.createObjectURL(blob)
     a.target = '_blank'
     // 40s后移除这个临时链接
@@ -73,17 +73,17 @@ function App() {
           size: Number(size)
         })
 
-        const readableStream = res.body
-        // more optimized
+        const readableStream = res.body;
+        //more optimized
         if (window.WritableStream && readableStream && readableStream.pipeTo) {
           console.log('start writing')
           return readableStream.pipeTo(fileStream)
             .then(() => console.log('done writing'))
         }
-
+        // 不支持上面方式的话，手动写入
         (window as any).writer = fileStream.getWriter()
-
         const reader = res.body.getReader()
+        // 下载完成前，持续读res里的数据，并写入
         const pump = () => reader.read()
           .then(res => res.done
             ? (window as any).writer.close()
